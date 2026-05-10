@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>英语练习 - 本地测试入口</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #667eea, #764ba2); min-height: 100vh; padding: 20px; }
+    .container { max-width: 500px; margin: 0 auto; }
+    .card { background: white; border-radius: 16px; padding: 24px; margin-bottom: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+    h1 { font-size: 22px; color: #333; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #999; margin-bottom: 20px; }
+    h2 { font-size: 15px; color: #667eea; margin: 16px 0 8px; border-left: 3px solid #667eea; padding-left: 8px; }
+    label { display: block; font-size: 13px; color: #666; margin: 10px 0 4px; }
+    input, textarea, select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+    textarea { resize: vertical; min-height: 60px; }
+    .btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+    .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+    .btn-green { background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; }
+    .info { background: #f8f9ff; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #666; line-height: 1.6; margin-top: 8px; }
+    .status { font-size: 12px; padding: 6px 10px; border-radius: 6px; margin-top: 8px; display: none; }
+    .status.ok { background: #e8f5e9; color: #2e7d32; display: block; }
+    .status.err { background: #ffebee; color: #c62828; display: block; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h1>🧪 本地测试入口</h1>
+    <div class="subtitle">配置参数后进入跟读 → 测试 → 聊天 完整流程</div>
+
+    <h2>第1步：跟读内容</h2>
+    <label>课文标题</label>
+    <input type="text" id="title" value="Unit 3 - Daily Routines">
+
+    <label>课文原文</label>
+    <textarea id="text">I get up at seven o'clock every morning. Then I brush my teeth and wash my face. After that, I have breakfast with my family. I go to school by bus at half past seven.</textarea>
+
+    <label>重点句型（用 | 分隔）</label>
+    <textarea id="patterns">I get up at...|I have breakfast...|I go to school...</textarea>
+
+    <label>重点词汇（格式：单词|音标|释义，用 | 分隔每项）</label>
+    <textarea id="vocab">get up|/ɡet ʌp/|起床|brush|/brʌʃ/|刷|wash|/wɒʃ/|洗|breakfast|/ˈbrekfəst/|早餐</textarea>
+
+    <h2>第2步：测试题目（JSON 格式）</h2>
+    <label>粘贴 n8n 生成的 quiz JSON，或留空使用示例题目</label>
+    <textarea id="quiz-json" rows="5">{"questions":[{"type":"listen_choice","word":"get up","choices":["起床","睡觉","吃饭","跑步"],"answer":0,"audio_text":"get up"},{"type":"listen_spell","audio_text":"brush","answer":"brush"},{"type":"sentence_blank","sentence":"I ___ up at seven.","answer":"get"},{"type":"grammar_choice","question":"What time do you get up?","choices":["At seven","Yes I do","I'm fine","Thank you"],"answer":0}]}</textarea>
+
+    <button class="btn btn-secondary" onclick="generateQuizUrl()">🔗 生成测试链接</button>
+    <div class="status" id="quiz-status"></div>
+
+    <h2>第3步：启动服务</h2>
+    <div class="info">
+      ⚠️ 测试前请先启动评分服务（另开终端）：<br><br>
+      <b>venv\Scripts\activate</b><br>
+      <b>python mock_score_service.py</b>（模拟）或 <b>python hf_score_service.py</b>（真实）<br><br>
+      服务地址：<span style="color:#667eea;">http://localhost:8000</span>
+    </div>
+    <button class="btn btn-green" onclick="checkService()">🔍 检查评分服务是否在线</button>
+    <div class="status" id="service-status"></div>
+
+    <h2>第4步：开始测试</h2>
+    <button class="btn btn-primary" onclick="startTest()">🚀 进入跟读练习</button>
+  </div>
+</div>
+
+<script>
+let quizUrl = "";
+
+// 获取当前页面所在目录（兼容 file:// 和 http://）
+function getBasePath() {
+  var path = window.location.pathname;
+  return path.substring(0, path.lastIndexOf('/') + 1);
+}
+
+function generateQuizUrl() {
+  var jsonStr = document.getElementById("quiz-json").value.trim();
+  if (!jsonStr) {
+    showStatus("quiz-status", "请先粘贴 quiz JSON", false);
+    return;
+  }
+  try {
+    JSON.parse(jsonStr);
+  } catch(e) {
+    showStatus("quiz-status", "JSON 格式错误：" + e.message, false);
+    return;
+  }
+  var base64 = btoa(unescape(encodeURIComponent(jsonStr)));
+  quizUrl = getBasePath() + "quiz.html?quiz=" + encodeURIComponent(base64);
+  showStatus("quiz-status", "✅ 测试链接已生成", true);
+}
+
+function checkService() {
+  fetch("http://localhost:8000/health")
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      showStatus("service-status", "✅ 评分服务在线！mode: " + (d.mode || d.status || "unknown"), true);
+    })
+    .catch(function() {
+      showStatus("service-status", "❌ 无法连接评分服务，请先运行 score service", false);
+    });
+}
+
+function startTest() {
+  if (!quizUrl) {
+    generateQuizUrl();
+    if (!quizUrl) return;
+  }
+
+  var params = new URLSearchParams();
+  params.set("title", document.getElementById("title").value);
+  params.set("date", new Date().toLocaleDateString("zh-CN"));
+  params.set("text", document.getElementById("text").value);
+  params.set("patterns", document.getElementById("patterns").value);
+  params.set("vocab", document.getElementById("vocab").value);
+  params.set("quiz_url", quizUrl);
+
+  var url = getBasePath() + "follow_read.html?" + params.toString();
+  window.open(url, "_blank");
+}
+
+function showStatus(id, msg, ok) {
+  var el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = "status " + (ok ? "ok" : "err");
+}
+
+window.addEventListener("load", function() {
+  setTimeout(checkService, 500);
+});
+</script>
+</body>
+</html>

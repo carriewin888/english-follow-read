@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>英语跟读练习</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 16px; }
+    .container { max-width: 480px; margin: 0 auto; }
+    .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+    h1 { font-size: 20px; color: #333; margin-bottom: 4px; }
+    .date { font-size: 13px; color: #999; margin-bottom: 16px; }
+    h2 { font-size: 16px; color: #667eea; margin: 16px 0 8px; border-left: 3px solid #667eea; padding-left: 8px; }
+    .content-box { background: #f8f9ff; border-radius: 8px; padding: 12px; font-size: 15px; line-height: 1.8; color: #333; white-space: pre-wrap; }
+    .word-list { display: flex; flex-direction: column; gap: 6px; }
+    .word-item { display: flex; justify-content: space-between; align-items: center; background: #f8f9ff; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+    .word { font-weight: 600; color: #333; }
+    .phonetic { color: #999; font-size: 12px; }
+    .meaning { color: #666; }
+    .section { margin-bottom: 12px; }
+    .record-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 8px; }
+    .record-btn.ready { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+    .record-btn.recording { background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: white; animation: pulse 1s infinite; }
+    .record-btn.playing { background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; }
+    .record-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+    .status { text-align: center; font-size: 13px; color: #999; margin-top: 8px; min-height: 20px; }
+    .playback-section { margin-top: 8px; }
+    .playback-item { display: flex; align-items: center; gap: 8px; background: #f0f0f0; border-radius: 8px; padding: 8px 12px; margin-top: 6px; font-size: 13px; }
+    .playback-label { color: #667eea; font-weight: 600; min-width: 45px; }
+    audio { flex: 1; height: 32px; }
+    .score-card { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 12px; padding: 16px; margin-top: 12px; display: none; }
+    .score-card.show { display: block; }
+    .score-row { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; }
+    .score-label { font-size: 14px; opacity: 0.9; }
+    .score-value { font-size: 20px; font-weight: 700; }
+    .score-bar { height: 6px; background: rgba(255,255,255,0.3); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+    .score-fill { height: 100%; background: white; border-radius: 3px; transition: width 0.5s; }
+    .total-score { text-align: center; font-size: 36px; font-weight: 800; margin: 12px 0 4px; }
+    .total-label { text-align: center; font-size: 13px; opacity: 0.8; }
+    .retry-btn { width: 100%; padding: 10px; border: 2px solid rgba(255,255,255,0.5); border-radius: 8px; background: transparent; color: white; font-size: 14px; cursor: pointer; margin-top: 12px; }
+    .quiz-btn { width: 100%; padding: 12px; border: none; border-radius: 10px; background: rgba(255,255,255,0.95); color: #667eea; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+    .submit-btn { width: 100%; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h1 id="title">📖 英语跟读练习</h1>
+    <div class="date" id="date"></div>
+
+    <div class="section">
+      <h2>📝 课文原文</h2>
+      <div class="content-box" id="text-content"></div>
+      <button class="record-btn ready" id="btn-text" onclick="toggleRecord('text')">🎙️ 跟读课文（第 1/3 遍）</button>
+      <div class="playback-section" id="playback-text"></div>
+    </div>
+
+    <div class="section">
+      <h2>📚 重点词汇</h2>
+      <div class="word-list" id="vocab-content"></div>
+      <button class="record-btn ready" id="btn-vocab" onclick="toggleRecord('vocab')" style="margin-top:8px">🎙️ 跟读词汇（第 1/3 遍）</button>
+      <div class="playback-section" id="playback-vocab"></div>
+    </div>
+
+    <div class="section">
+      <h2>🔑 重点句型</h2>
+      <div class="content-box" id="pattern-content"></div>
+      <button class="record-btn ready" id="btn-pattern" onclick="toggleRecord('pattern')" style="margin-top:8px">🎙️ 跟读句型（第 1/3 遍）</button>
+      <div class="playback-section" id="playback-pattern"></div>
+    </div>
+
+    <div class="status" id="status">准备就绪，点击按钮开始跟读</div>
+    <button class="submit-btn" id="submit-btn" style="display:none;" onclick="manualSubmit()">📤 提交打分</button>
+
+    <div class="score-card" id="score-card">
+      <div class="total-label">本次跟读得分</div>
+      <div class="total-score" id="total-score">--</div>
+      <div class="score-row"><span class="score-label">清晰度</span><span class="score-value" id="score-clarity">--</span></div>
+      <div class="score-bar"><div class="score-fill" id="bar-clarity"></div></div>
+      <div class="score-row"><span class="score-label">发音准确性</span><span class="score-value" id="score-accuracy">--</span></div>
+      <div class="score-bar"><div class="score-fill" id="bar-accuracy"></div></div>
+      <div class="score-row"><span class="score-label">朗读完整性</span><span class="score-value" id="score-completeness">--</span></div>
+      <div class="score-bar"><div class="score-fill" id="bar-completeness"></div></div>
+      <div class="score-row"><span class="score-label">完成遍数</span><span class="score-value" id="score-rounds">--</span></div>
+      <div class="score-bar"><div class="score-fill" id="bar-rounds"></div></div>
+      <button class="retry-btn" onclick="resetAll()">🔄 重新跟读</button>
+      <button class="quiz-btn" id="quiz-btn" onclick="goToQuiz()" style="display:none;">🎮 开始测试挑战</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 配置 ==========
+// 本地测试：http://localhost:8000
+// 局域网其他设备：http://你的IP:8000
+// 公网部署：通过 URL 参数 api_base 传入，例如 &api_base=https://xxx.hf.space
+const urlParams = new URLSearchParams(location.search);
+const API_BASE = urlParams.get('api_base') || "http://localhost:8000";
+
+// ========== 状态 ==========
+let mediaRecorder = null, audioChunks = [];
+let currentType = null, currentRound = 0;
+const rounds = { text: 0, vocab: 0, pattern: 0 };
+const recordings = { text: [], vocab: [], pattern: [] };
+let quizUrl = "";
+
+// ========== 初始化页面 ==========
+function initPage() {
+  const params = new URLSearchParams(location.search);
+  document.getElementById("title").textContent = (params.get("title") || "📖 英语跟读练习");
+  document.getElementById("date").textContent = params.get("date") || new Date().toLocaleDateString("zh-CN");
+  document.getElementById("text-content").textContent = (params.get("text") || "...");
+  document.getElementById("pattern-content").textContent = (params.get("patterns") || "...");
+
+  // 读取测试链接
+  quizUrl = params.get("quiz_url") || "";
+  if (quizUrl) console.log("测验链接已就绪");
+
+  // 解析词汇
+  const vocabStr = params.get("vocab") || "";
+  const vocabEl = document.getElementById("vocab-content");
+  vocabStr.split("|").filter(Boolean).forEach(w => {
+    const parts = w.split("|");
+    const word = parts[0] || w;
+    const phonetic = parts[1] || "";
+    const meaning = parts.slice(2).join("|") || "";
+    const div = document.createElement("div");
+    div.className = "word-item";
+    div.innerHTML = `<span class="word">${word}</span><span class="phonetic">${phonetic}</span><span class="meaning">${meaning}</span>`;
+    vocabEl.appendChild(div);
+  });
+}
+
+// ========== 录音：开始/停止切换 ==========
+async function toggleRecord(type) {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+    return;
+  }
+
+  currentType = type;
+  currentRound = rounds[type] + 1;
+  if (currentRound > 3) return;
+
+  const btn = document.getElementById("btn-" + type);
+  btn.className = "record-btn recording";
+  btn.textContent = `⏹️ 点击停止（第 ${currentRound}/3 遍）`;
+  document.getElementById("status").textContent = `正在录制${getTypeName(type)}第 ${currentRound} 遍，朗读完后点击停止`;
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      onStopRecording(type, currentRound);
+      stream.getTracks().forEach(t => t.stop());
+    };
+    mediaRecorder.start();
+  } catch (err) {
+    document.getElementById("status").textContent = "无法访问麦克风，请检查权限设置";
+    btn.className = "record-btn ready";
+    btn.textContent = `🎙️ 跟读${getTypeName(type)}（第 ${currentRound}/3 遍）`;
+  }
+}
+
+// ========== 停止录音后 ==========
+function onStopRecording(type, round) {
+  const blob = new Blob(audioChunks, { type: "audio/webm" });
+  recordings[type].push(blob);
+  rounds[type] = round;
+
+  addPlaybackItem(type, round, blob);
+
+  const btn = document.getElementById("btn-" + type);
+  if (round < 3) {
+    btn.className = "record-btn ready";
+    btn.textContent = `🎙️ 跟读${getTypeName(type)}（第 ${round+1}/3 遍）`;
+    document.getElementById("status").textContent = `第 ${round} 遍已完成，可回听。继续第 ${round+1} 遍`;
+  } else {
+    btn.className = "record-btn playing";
+    btn.textContent = `✅ ${getTypeName(type)}3遍完成，可提交`;
+    btn.disabled = true;
+    document.getElementById("status").textContent = `✅ ${getTypeName(type)}3遍已全部完成，可回听后提交打分`;
+    const submitBtn = document.getElementById("submit-btn");
+    submitBtn.style.display = "block";
+    submitBtn.textContent = `📤 提交${getTypeName(type)}打分`;
+    submitBtn.dataset.type = type;
+  }
+}
+
+// ========== 添加回听播放条 ==========
+function addPlaybackItem(type, round, blob) {
+  const container = document.getElementById("playback-" + type);
+  const url = URL.createObjectURL(blob);
+  const item = document.createElement("div");
+  item.className = "playback-item";
+  item.innerHTML = `<span class="playback-label">第${round}遍</span><audio controls src="${url}"></audio>`;
+  container.appendChild(item);
+}
+
+function getTypeName(type) {
+  return { text: "课文", vocab: "词汇", pattern: "句型" }[type];
+}
+
+// ========== 手动提交 ==========
+async function manualSubmit() {
+  const submitBtn = document.getElementById("submit-btn");
+  const type = submitBtn.dataset.type;
+  if (!type) return;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "⏳ 提交中...";
+  document.getElementById("status").textContent = "正在提交打分，请稍候...";
+  await submitRecordings(type);
+}
+
+// ========== 提交打分 ==========
+async function submitRecordings(type) {
+  if (!API_BASE) {
+    document.getElementById("status").textContent = "⚠️ 未配置评分服务地址，请联系管理员";
+    const submitBtn = document.getElementById("submit-btn");
+    submitBtn.disabled = false;
+    submitBtn.textContent = `📤 重新提交${getTypeName(type)}打分`;
+    return;
+  }
+
+  const formData = new FormData();
+  const originalText = {
+    text: document.getElementById("text-content").textContent,
+    vocab: document.getElementById("vocab-content").innerText,
+    pattern: document.getElementById("pattern-content").textContent
+  }[type];
+
+  for (let i = 0; i < recordings[type].length; i++) {
+    formData.append("audios", recordings[type][i], `round_${i+1}.webm`);
+  }
+  formData.append("original_text", originalText);
+  formData.append("type", type);
+  formData.append("rounds", recordings[type].length);
+
+  try {
+    const resp = await fetch(`${API_BASE}/score`, { method: "POST", body: formData });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const result = await resp.json();
+    showScore(result);
+  } catch (e) {
+    document.getElementById("status").textContent = "提交失败：" + e.message + "，请检查评分服务是否正常运行";
+    const submitBtn = document.getElementById("submit-btn");
+    submitBtn.disabled = false;
+    submitBtn.textContent = `📤 重新提交${getTypeName(type)}打分`;
+  }
+}
+
+// ========== 显示打分 ==========
+function showScore(result) {
+  const card = document.getElementById("score-card");
+  card.classList.add("show");
+  document.getElementById("total-score").textContent = result.total + " 分";
+  setScore("clarity", result.clarity);
+  setScore("accuracy", result.accuracy);
+  setScore("completeness", result.completeness);
+  setScore("rounds", result.rounds);
+  document.getElementById("status").textContent = "✅ 打分完成！";
+  document.getElementById("submit-btn").style.display = "none";
+
+  // 显示开始测试按钮
+  if (quizUrl) {
+    document.getElementById("quiz-btn").style.display = "block";
+  }
+}
+
+function setScore(name, value) {
+  document.getElementById("score-" + name).textContent = value + " 分";
+  document.getElementById("bar-" + name).style.width = value + "%";
+}
+
+function goToQuiz() {
+  if (quizUrl) window.location.href = quizUrl;
+}
+
+function resetAll() {
+  rounds.text = rounds.vocab = rounds.pattern = 0;
+  recordings.text = recordings.vocab = recordings.pattern = [];
+  ["text","vocab","pattern"].forEach(t => {
+    const btn = document.getElementById("btn-" + t);
+    btn.className = "record-btn ready";
+    btn.disabled = false;
+    btn.textContent = `🎙️ 跟读${getTypeName(t)}（第 1/3 遍）`;
+    document.getElementById("playback-" + t).innerHTML = "";
+  });
+  document.getElementById("score-card").classList.remove("show");
+  document.getElementById("status").textContent = "准备就绪，点击按钮开始跟读";
+  document.getElementById("submit-btn").style.display = "none";
+  document.getElementById("quiz-btn").style.display = "none";
+}
+
+initPage();
+</script>
+</body>
+</html>

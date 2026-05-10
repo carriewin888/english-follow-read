@@ -1,0 +1,171 @@
+{
+  "name": "英语伴学Agent - 每日英语推送",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "每天20:00触发",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 话题轮换器 - 7天一轮，每天不同话题\nconst topics = [\n  { day: 0, type: 'joke', topic: '英语笑话', desc: '写一个有趣的英语笑话，让学生在笑声中学单词' },\n  { day: 1, type: 'tongue_twister', topic: '英语绕口令', desc: '写一个经典的英语绕口令，训练发音和语感' },\n  { day: 2, type: 'tech', topic: 'AI与科技', desc: '介绍最新AI或科技新闻，用初二能懂的英语' },\n  { day: 3, type: 'military', topic: '军事前沿', desc: '介绍有趣的军事科技或装备，用简单英语描述' },\n  { day: 4, type: 'space', topic: '天文宇宙', desc: '介绍一个天文现象或宇宙知识' },\n  { day: 5, type: 'geography', topic: '地理探索', desc: '介绍一个有趣的地方或地理现象' },\n  { day: 6, type: 'material', topic: '新材料/物理', desc: '介绍神奇的材料或物理现象' }\n];\n\nconst today = new Date();\nconst dayOfWeek = today.getDay();\nconst selected = topics[dayOfWeek];\n\nreturn [{\n  json: {\n    topic_type: selected.type,\n    topic_name: selected.topic,\n    topic_desc: selected.desc,\n    date: today.toISOString().split('T')[0],\n    weekday: ['日','一','二','三','四','五','六'][dayOfWeek],\n    chatInput: `请为「${selected.topic}」生成今日英语伴学内容。`\n  }\n}];"
+      },
+      "id": "topic-rotator",
+      "name": "话题轮换",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "prompt": "=你是一位面向中国浙江宁波初二学生的英语伴学老师，教学风格幽默有趣，善于用生动的方式让学生爱上英语。\n\n今天的主题是：{{ $json.topic_name }}\n主题描述：{{ $json.topic_desc }}\n\n请严格按照以下要求生成内容：\n\n1. 写一篇80-100个单词的英语短文，内容贴近今日主题，有趣、有料\n2. 词汇难度控制在初二水平（中考大纲），允许5-8个超纲词汇（用★标注）\n3. 短文要有故事性或趣味性，不能是干巴巴的说明文\n\n请严格按以下格式输出（不要输出其他内容）：\n\n---ENGLISH---\n（英文原文，80-100词）\n\n---TRANSLATION---\n（中文译文）\n\n---VOCABULARY---\n（列出8-12个重点词汇，每行格式：单词 | 音标 | 词性 | 中文释义 | 简单例句）\n\n---PATTERNS---\n（3-5个重点句型，每个包含：句型结构、文中原句、仿写例句）\n\n---GRAMMAR---\n（1-2个语法要点，简洁讲解+例句）\n\n---QUIZ---\n（3道选择题，考查今日词汇和语法，格式：题目\\nA. xxx  B. xxx  C. xxx  D. xxx\\n答案：X）\n\n---ENCOURAGEMENT---\n（一句鼓励的话，中英双语）"
+      },
+      "id": "ai-content-generator",
+      "name": "AI生成英语内容",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {}
+      },
+      "id": "openai-chat-sub",
+      "name": "OpenAI Chat模型",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        680,
+        520
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 解析AI输出，组装推送内容\nconst raw = $input.first().json.output || $input.first().json.message || $input.first().json.text || $input.first().json.content || '';\n\n// 如果AI输出是结构化的，直接使用\n// 否则尝试分段解析\nlet sections = {\n  english: '',\n  translation: '',\n  vocabulary: '',\n  patterns: '',\n  grammar: '',\n  quiz: '',\n  encouragement: ''\n};\n\nif (raw.includes('---ENGLISH---')) {\n  const parts = raw.split('---');\n  // 简单分段解析\n  sections.english = (raw.match(/---ENGLISH---([\\s\\S]*?)(?=---|$)/) || ['',''])[1].trim();\n  sections.translation = (raw.match(/---TRANSLATION---([\\s\\S]*?)(?=---|$)/) || ['',''])[1].trim();\n  sections.vocabulary = (raw.match(/---VOCABULARY---([\\s\\S]*?)(?=---|$)/) || ['',''])[1].trim();\n  sections.patterns = (raw.match(/---PATTERNS---([\\s\\S]*?)(?=---|$)/) || ['',''])[1].trim();\n  sections.grammar = (raw.match(/---GRAMMAR---([\\s\\S]*?)(?=---|$)/) || ['',''])[1].trim();\n  sections.quiz = (raw.match(/---QUIZ---([\\s\\S]*?)(?=---|$)/) || ['',''])[1].trim();\n  sections.encouragement = (raw.match(/---ENCOURAGEMENT---([\\s\\S]*?)(?=---|$)/) || ['',''])[1].trim();\n} else {\n  // 如果没有分段标记，整段输出\n  sections.english = raw;\n}\n\nconst topicInfo = $('话题轮换').first().json;\nconst today = new Date();\nconst dateStr = today.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });\n\n// 组装Markdown格式的推送内容\nconst markdown = `# 📖 每日英语伴学 | ${dateStr}\n## 🎯 今日主题：${topicInfo.topic_name}\n\n---\n\n## 📝 英文原文\n${sections.english}\n\n---\n\n## 🌏 中文译文\n${sections.translation}\n\n---\n\n## 📚 重点词汇\n${sections.vocabulary}\n\n---\n\n## 🔑 重点句型\n${sections.patterns}\n\n---\n\n## 📐 语法要点\n${sections.grammar}\n\n---\n\n## ✅ 今日小测\n${sections.quiz}\n\n---\n\n## 💪 ${sections.encouragement}\n`;\n\nreturn [{\n  json: {\n    title: `每日英语 | ${topicInfo.topic_name} | ${dateStr}`,\n    content: markdown,\n    topic: topicInfo.topic_name,\n    date: dateStr\n  }\n}];"
+      },
+      "id": "format-output",
+      "name": "格式化输出",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.pushplus.plus/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"token\": \"YOUR_PUSHPLUS_TOKEN\",\n  \"title\": \"{{ $json.title }}\",\n  \"content\": {{ JSON.stringify($json.content) }},\n  \"template\": \"markdown\"\n}",
+        "options": {}
+      },
+      "id": "pushplus-wechat",
+      "name": "推送到微信",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "每天20:00触发": {
+      "main": [
+        [
+          {
+            "node": "话题轮换",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "话题轮换": {
+      "main": [
+        [
+          {
+            "node": "AI生成英语内容",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI生成英语内容": {
+      "main": [
+        [
+          {
+            "node": "格式化输出",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "格式化输出": {
+      "main": [
+        [
+          {
+            "node": "推送到微信",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat模型": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI生成英语内容",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

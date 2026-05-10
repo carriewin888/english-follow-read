@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz URL 生成器</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: monospace; background: #f5f5f5; padding: 20px; }
+    .container { max-width: 700px; margin: 0 auto; background: white; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h1 { font-size: 18px; color: #333; margin-bottom: 16px; }
+    label { display: block; font-size: 13px; color: #666; margin-top: 16px; margin-bottom: 6px; }
+    textarea { width: 100%; height: 200px; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: monospace; resize: vertical; }
+    input[type="text"] { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    button { margin-top: 16px; padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+    button:hover { background: #764ba2; }
+    .result { margin-top: 16px; padding: 12px; background: #f0f8ff; border-radius: 6px; word-break: break-all; font-size: 12px; color: #333; }
+    .result a { color: #667eea; }
+    .copy-btn { margin-left: 8px; padding: 4px 8px; font-size: 12px; background: #eee; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🎮 Quiz URL 生成器</h1>
+
+  <label>① 粘贴 quiz JSON（或从 sample-quiz.json 复制）：</label>
+  <textarea id="json-input" placeholder="粘贴JSON...">{"title":"英语趣味测试","date":"2026-05-09","time_limit":600,"questions":[{"type":"listen_choice","audio_url":"http://localhost:5000/audio/test.mp3","options":["苹果","香蕉","橙子","葡萄"],"answer":0}]}</textarea>
+
+  <label>② 输入 quiz.html 的访问地址（本地测试用）：</label>
+  <input type="text" id="base-url" value="quiz.html" placeholder="quiz.html 或完整URL">
+
+  <button onclick="generate()">🔗 生成测试链接</button>
+
+  <div class="result" id="result" style="display:none;">
+    <b>生成的链接：</b><br>
+    <a href="#" id="quiz-link" target="_blank"></a>
+    <button class="copy-btn" onclick="copyLink()">复制</button>
+    <br><br>
+    <b>或直接打开：</b><br>
+    <a href="#" id="quiz-link2" target="_blank">点击这里打开测试页</a>
+  </div>
+</div>
+
+<script>
+function generate() {
+  const jsonStr = document.getElementById("json-input").value.trim();
+  const baseUrl = document.getElementById("base-url").value.trim();
+
+  if (!jsonStr) { alert("请先粘贴 JSON！"); return; }
+
+  try {
+    JSON.parse(jsonStr); // 验证JSON
+  } catch(e) {
+    alert("JSON 格式错误：" + e.message);
+    return;
+  }
+
+  const base64 = btoa(unescape(encodeURIComponent(jsonStr)));
+  const fullUrl = baseUrl + (baseUrl.includes("?") ? "&" : "?") + "quiz=" + encodeURIComponent(base64);
+
+  document.getElementById("quiz-link").textContent = fullUrl;
+  document.getElementById("quiz-link").href = fullUrl;
+  document.getElementById("quiz-link2").href = fullUrl;
+  document.getElementById("result").style.display = "block";
+}
+
+function copyLink() {
+  const link = document.getElementById("quiz-link").textContent;
+  navigator.clipboard.writeText(link).then(() => alert("已复制！"));
+}
+</script>
+</body>
+</html>

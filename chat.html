@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>和 AI 老师聊天</title>
+  <style>
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f7fa; height: 100vh; display: flex; flex-direction: column; }
+
+    .header { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
+    .header h1 { font-size: 17px; font-weight: 600; }
+    .header .back { background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 50%; width: 32px; height: 32px; font-size: 16px; cursor: pointer; }
+
+    .chat-area { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+    .msg { max-width: 80%; padding: 10px 14px; border-radius: 16px; font-size: 15px; line-height: 1.6; word-break: break-word; }
+    .msg.assistant { background: white; color: #333; border-bottom-left-radius: 4px; align-self: flex-start; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .msg.user { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; border-bottom-right-radius: 4px; align-self: flex-end; }
+
+    .msg .speaker { font-size: 11px; opacity: 0.6; margin-bottom: 4px; }
+    .msg .text { white-space: pre-wrap; }
+    .msg .play-tts { background: none; border: none; cursor: pointer; font-size: 14px; margin-top: 4px; opacity: 0.6; }
+    .msg .play-tts:hover { opacity: 1; }
+
+    .input-bar { background: white; padding: 10px 12px; display: flex; align-items: flex-end; gap: 8px; border-top: 1px solid #eee; }
+    .input-bar textarea { flex: 1; border: 1px solid #ddd; border-radius: 20px; padding: 8px 16px; font-size: 15px; resize: none; outline: none; min-height: 36px; max-height: 80px; font-family: inherit; }
+    .input-bar textarea:focus { border-color: #f5576c; }
+    .send-btn { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 16px; cursor: pointer; flex-shrink: 0; }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .mode-switch { display: flex; gap: 4px; padding: 8px 16px; background: white; border-bottom: 1px solid #eee; }
+    .mode-btn { flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 20px; background: white; font-size: 13px; cursor: pointer; color: #666; text-align: center; }
+    .mode-btn.active { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; border-color: transparent; }
+
+    .typing { align-self: flex-start; background: white; padding: 10px 14px; border-radius: 16px; border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .typing span { display: inline-block; width: 6px; height: 6px; background: #ccc; border-radius: 50%; margin: 0 2px; animation: blink 1.2s infinite; }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%,80%,100%{ opacity:0.3; } 40%{ opacity:1; } }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <button class="back" onclick="location.href='quiz.html'">&#8592;</button>
+  <div>
+    <h1>&#128172; 英语聊天</h1>
+    <div style="font-size:12px;opacity:0.8;">和 AI 老师自由对话，提升口语和听力</div>
+  </div>
+</div>
+
+<div class="mode-switch">
+  <button class="mode-btn active" onclick="setMode('bilingual', this)">&#127463;&#127475; 中英双语</button>
+  <button class="mode-btn" onclick="setMode('english', this)">&#127462;&#127482; &#127463;&#127482; 全英文</button>
+  <button class="mode-btn" onclick="setMode('free', this)">&#9997;&#65039; 自由聊</button>
+</div>
+
+<div class="chat-area" id="chat-area">
+  <div class="msg assistant">
+    <div class="speaker">&#129302; AI 老师</div>
+    <div class="text" id="welcome-text">你好！我是你的 AI 英语老师。你可以和我用英语聊天，我会帮你纠正语法错误，也会用中文解释不懂的地方。试试和我打个招呼吧！<br><br>Hi! I'm your AI English tutor. Feel free to chat with me in English!</div>
+    <button class="play-tts" onclick="speakText('Hi! I am your AI English tutor. Feel free to chat with me in English!')">&#128266;</button>
+  </div>
+</div>
+
+<div class="input-bar">
+  <textarea id="user-input" placeholder="输入消息..." rows="1" oninput="autoGrow(this)" onkeydown="handleKey(event)"></textarea>
+  <button class="send-btn" id="send-btn" onclick="sendMessage()">&#10148;</button>
+</div>
+
+<script>
+// ========== 配置：AI API ==========
+var API_KEY = "sk-6e9eb5aab74b4779ab57144afc6ff6e6";  // 填入你的 DeepSeek API Key
+var API_URL = "https://api.deepseek.com/v1/chat/completions";
+var MODEL = "deepseek-chat";
+
+var chatMode = "bilingual";
+var conversationHistory = [];
+
+// ========== 语音播放 ==========
+function speakText(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  var u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-US';
+  u.rate = 0.85;
+  var voices = window.speechSynthesis.getVoices();
+  for (var i = 0; i < voices.length; i++) {
+    if (voices[i].lang && voices[i].lang.startsWith('en')) {
+      u.voice = voices[i];
+      break;
+    }
+  }
+  window.speechSynthesis.speak(u);
+}
+if ('speechSynthesis' in window) {
+  speechSynthesis.getVoices();
+  speechSynthesis.onvoiceschanged = function() { speechSynthesis.getVoices(); };
+}
+
+// ========== 模式切换 ==========
+function setMode(mode, btn) {
+  chatMode = mode;
+  var btns = document.querySelectorAll(".mode-btn");
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove("active");
+  btn.classList.add("active");
+
+  var hints = {
+    bilingual: "&#127463;&#127475; 中英双语模式：AI 会用英文回复，并在必要时用中文解释。",
+    english: "&#127462;&#127482; &#127463;&#127482; 全英文模式：AI 只使用英文回复，挑战一下吧！",
+    free: "&#9997;&#65039; 自由聊模式：随便聊，AI 会纠正你的英语错误。"
+  };
+  appendMessage("assistant", hints[mode]);
+}
+
+// ========== 发送消息 ==========
+function sendMessage() {
+  var input = document.getElementById("user-input");
+  var text = input.value.trim();
+  if (!text) return;
+
+  appendMessage("user", text);
+  input.value = "";
+  autoGrow(input);
+
+  var typingEl = appendTyping();
+
+  var systemPrompts = {
+    bilingual: "你是风趣幽默的英语老师，专门教中国初二学生。用简单英文回复，复杂地方用中文解释。纠正学生的语法错误，并给出正确用法。",
+    english: "You are a friendly English tutor for a Chinese middle school student (grade 8). Reply ONLY in simple English (CEFR A2-B1 level). Correct grammar mistakes gently. Be encouraging and fun.",
+    free: "你是陪练英语对话的AI老师。学生可能中英文混合输入，你根据情况回复。用英文引导对话，适当纠正错误，多用鼓励的话。"
+  };
+
+  var headers = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer " + API_KEY
+  };
+
+  var body = JSON.stringify({
+    model: MODEL,
+    messages: [
+      { role: "system", content: systemPrompts[chatMode] },
+      { role: "user", content: text }
+    ],
+    temperature: 0.7,
+    max_tokens: 300
+  });
+
+  fetch(API_URL, {
+    method: "POST",
+    headers: headers,
+    body: body
+  })
+  .then(function(resp) { return resp.json(); })
+  .then(function(data) {
+    typingEl.remove();
+    var reply = "";
+    if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+      reply = data.choices[0].message.content;
+    } else {
+      reply = "&#9888;&#65039; 没有收到回复，请重试。";
+    }
+    appendMessage("assistant", reply);
+    // 自动朗读 AI 回复中的英文部分
+    var englishPart = reply.replace(/[\u4e00-\u9fa5][\s\S]*$/g, '').trim();
+    if (englishPart) speakText(englishPart);
+  })
+  .catch(function(e) {
+    typingEl.remove();
+    appendMessage("assistant", "&#9888;&#65039; 网络错误：" + e.message);
+  });
+}
+
+// ========== 追加消息到界面 ==========
+function appendMessage(role, text) {
+  var area = document.getElementById("chat-area");
+  var div = document.createElement("div");
+  div.className = "msg " + role;
+
+  var label = role === "assistant" ? "&#129302; AI 老师" : "&#128100; 我";
+  var html = '<div class="speaker">' + label + '</div>';
+  html += '<div class="text">' + text.replace(/\n/g, '<br>') + '</div>';
+  if (role === 'assistant') {
+    html += '<button class="play-tts" onclick="speakText(this.getAttribute(\'data-text\'))">&#128266;</button>';
+  }
+  div.innerHTML = html;
+  if (role === 'assistant') div.querySelector('.play-tts').setAttribute('data-text', text);
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+  return div;
+}
+
+function appendTyping() {
+  var area = document.getElementById("chat-area");
+  var div = document.createElement("div");
+  div.className = "typing";
+  div.innerHTML = "<span></span><span></span><span></span>";
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+  return div;
+}
+
+// ========== 输入框自适应 ==========
+function autoGrow(textarea) {
+  textarea.style.height = "auto";
+  textarea.style.height = Math.min(textarea.scrollHeight, 80) + "px";
+}
+
+function handleKey(e) {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+// 初始化
+(function() {
+  var params = new URLSearchParams(location.search);
+  var topic = params.get("topic") || "英语趣味测试";
+  var el = document.getElementById("welcome-text");
+  el.innerHTML = el.innerHTML + '<br><br>今日话题：<b>' + topic + '</b>';
+})();
+</script>
+</body>
+</html>

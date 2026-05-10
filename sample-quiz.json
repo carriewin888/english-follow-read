@@ -1,0 +1,41 @@
+{
+  "title": "英语趣味测试",
+  "date": "2026-05-09",
+  "time_limit": 600,
+  "questions": [
+    {
+      "type": "listen_choice",
+      "audio_url": "http://localhost:5000/audio/sample1.mp3",
+      "options": ["苹果", "香蕉", "橙子", "葡萄"],
+      "answer": 0
+    },
+    {
+      "type": "listen_spell",
+      "audio_url": "http://localhost:5000/audio/sample2.mp3",
+      "answer": "banana",
+      "hint": "提示：一种黄色的水果"
+    },
+    {
+      "type": "sentence_blank",
+      "sentence": "I ___ to school every day.",
+      "options": ["go", "goes", "going", "went"],
+      "answer": 0
+    },
+    {
+      "type": "grammar_choice",
+      "question": "Choose the correct sentence:",
+      "options": [
+        "He don't like it.",
+        "He doesn't like it.",
+        "He not like it."
+      ],
+      "answer": 1
+    },
+    {
+      "type": "listen_choice",
+      "audio_url": "http://localhost:5000/audio/sample3.mp3",
+      "options": ["跑步", "游泳", "跳跃", "走路"],
+      "answer": 1
+    }
+  ]
+}

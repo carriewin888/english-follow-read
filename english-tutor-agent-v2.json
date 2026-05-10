@@ -1,0 +1,231 @@
+{
+  "name": "英语伴学Agent V2 - 完整版",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * *"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3",
+      "name": "定时触发-每晚8点",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const topics = [\n  { day: 0, type: 'joke', topic: '英语笑话', emoji: '😂', desc: '分享一个有趣的英语笑话，让学生在笑声中学单词' },\n  { day: 1, type: 'tongue_twister', topic: '英语绕口令', emoji: '👅', desc: '选择一个经典的英语绕口令，训练发音和语感' },\n  { day: 2, type: 'rhyme', topic: '英语顺口溜', emoji: '🎵', desc: '创作一个朗朗上口的英语顺口溜，帮助记忆单词或语法' },\n  { day: 3, type: 'tech', topic: 'AI与科技前沿', emoji: '🤖', desc: '介绍最新AI或科技动态，用初二能懂的英语' },\n  { day: 4, type: 'military', topic: '军事与航天', emoji: '🚀', desc: '介绍有趣的军事科技、航天装备或最新动态' },\n  { day: 5, type: 'space', topic: '天文宇宙', emoji: '🌌', desc: '介绍一个天文现象、宇宙探索最新发现' },\n  { day: 6, type: 'geography', topic: '地理与自然', emoji: '🌍', desc: '介绍一个有趣的地方、地理现象或自然奇观' }\n];\n\nconst today = new Date();\nconst dayOfWeek = today.getDay();\nconst selected = topics[dayOfWeek];\nconst weekdayNames = ['周日','周一','周二','周三','周四','周五','周六'];\nconst wd = weekdayNames[dayOfWeek];\n\nconst chatInput = [\n  '你是一位风趣幽默的英语老师，专门教中国浙江宁波的初二学生。你的风格是：让不懂英语的人也爱上学英语！',\n  '',\n  '今天是' + wd + '，今日主题：' + selected.topic,\n  '描述：' + selected.desc,\n  '',\n  '请严格输出以下7个部分，每部分用 ===标记=== 分隔（每个标记必须原样出现、独占一行）。除这七个区块外不要写任何开场白、结束语或额外说明。',\n  '',\n  '===ENGLISH===',\n  '写一篇80-100个单词的英语短文。要求：',\n  '- 内容贴近主题，有趣有料',\n  '- 词汇控制在初二水平（中考大纲）',\n  '- 允许5-8个超纲词（用★标注）',\n  '- 要有故事性或趣味性',\n  '',\n  '===TRANSLATION===',\n  '逐句翻译为中文，翻译要自然流畅',\n  '',\n  '===VOCABULARY===',\n  '列出8-12个重点词汇，格式：',\n  '单词 | 音标 | 词性 | 中文释义',\n  '（超纲词★放在最前面）',\n  '',\n  '===PATTERNS===',\n  '3-5个重点句型：',\n  '【句型】句型结构',\n  '【原文】文中原句',\n  '【仿写】用同句型造一个贴近学生生活的新句子',\n  '',\n  '===GRAMMAR===',\n  '1-2个语法要点，每个包含：',\n  '- 语法名称',\n  '- 简洁讲解（1-2句）',\n  '- 文中例句',\n  '- 仿写例句',\n  '',\n  '===QUIZ===',\n  '3道选择题（4选1），考查今日词汇和语法：',\n  '题目',\n  'A. xxx',\n  'B. xxx',\n  'C. xxx',\n  'D. xxx',\n  '正确答案：X',\n  '解析：...',\n  '',\n  '===ENCOURAGEMENT===',\n  '一句鼓励的话，中英双语，温暖有力',\n  '',\n  '【禁止】使用课外读物式英文小标题（如 What is it、Key vocabulary、Example sentence、Todays English 等）；不要用 ## 或 ** 替代上述七个 === 区块；第一行必须是 ===ENGLISH===。'\n].join('\\n');\n\nreturn [{\n  json: {\n    topic_type: selected.type,\n    topic_name: selected.topic,\n    topic_emoji: selected.emoji,\n    topic_desc: selected.desc,\n    date: today.toISOString().split('T')[0],\n    weekday: wd,\n    chatInput,\n    display_title: selected.emoji + ' 每日英语伴学 | ' + wd + ' · ' + selected.topic\n  }\n}];"
+      },
+      "id": "d4e5f6",
+      "name": "7日话题轮换",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "deepseek-chat",
+        "options": {
+          "temperature": 0.35,
+          "baseURL": "https://api.deepseek.com/v1"
+        }
+      },
+      "id": "g7h8i9",
+      "name": "OpenAI模型",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        640,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.chatInput }}",
+        "prompt": "你是排版执行器。用户消息里已写死全部角色、主题与七个 ===...=== 区块要求。\n\n你必须：\n1. 只输出用户要求的七个区块，从第一行 ===ENGLISH=== 开始，到 ===ENCOURAGEMENT=== 内最后一字结束。\n2. 不要写前言、摘要、英文小标题（如 What is it、Key vocabulary）、不要用 ## 或 ** 组织全文。\n3. ENGLISH 区块内是一篇连贯的 80-100 词短文，不是词条说明列表。"
+      },
+      "id": "j0k1l2",
+      "name": "AI英语老师",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 组装推送内容，包含音频链接和公网练习链接\nconst aiOutput = $('AI英语老师').first().json;\nconst audioResult = $('生成音频文件').first().json;\n\n// 从AI输出中提取各部分（如果AI遵循格式）\nconst raw = aiOutput.output || aiOutput.text || '';\n\nfunction extractSection(markers, text) {\n  for (const m of markers) {\n    const regex = new RegExp(m + '[\\s\\S]*?([\\s\\S]*?)(?====|$)', 'i');\n    const match = text.match(regex);\n    if (match && match[1] && match[1].trim()) return match[1].trim();\n  }\n  return '';\n}\n\nconst english = extractSection(['===ENGLISH==='], raw) || (aiOutput.output ? aiOutput.output.substring(0, 500) : '');\nconst translation = extractSection(['===TRANSLATION==='], raw);\nconst vocabulary = extractSection(['===VOCABULARY==='], raw);\nconst patterns = extractSection(['===PATTERNS==='], raw);\nconst grammar = extractSection(['===GRAMMAR==='], raw);\nconst quiz = extractSection(['===QUIZ==='], raw);\nconst encouragement = extractSection(['===ENCOURAGEMENT==='], raw);\n\nconst topicInfo = $('7日话题轮换').first().json;\nconst today = new Date();\nconst dateStr = today.toLocaleDateString('zh-CN', {\n  year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'\n});\n\n// 音频URL\nconst audioUrl = audioResult.data && audioResult.data.url ? audioResult.data.url : '';\nconst audioFilepath = audioResult.data && audioResult.data.filepath ? audioResult.data.filepath : '';\n\n// 公网练习链接（GitHub Pages）\nconst followReadUrl = 'https://carriewin888.github.io/english-follow-read/follow_read.html';\nconst quizUrl = 'https://carriewin888.github.io/english-follow-read/quiz.html';\nconst chatUrl = 'https://carriewin888.github.io/english-follow-read/chat.html';\n\nlet markdown = '# ' + topicInfo.topic_emoji + ' 每日英语伴学\n## ' + topicInfo.topic_name + ' | ' + dateStr + '\n\n---\n\n' +\n  '## 🔊 跟读练习\n👉 [点击这里开始跟读](' + followReadUrl + ')\n\n' +\n  '## ✍️ 答题练习\n👉 [点击这里开始答题](' + quizUrl + ')\n\n' +\n  '## 💬 自由对话\n👉 [点击这里和AI聊天](' + chatUrl + ')\n\n' +\n  '---\n\n## 📝 英文原文\n' + english + '\n\n---\n\n## 🌏 中文译文\n' + (translation || '（待补充）') + '\n\n---\n\n## 📚 重点词汇\n' + (vocabulary || '（待补充）') + '\n\n---\n\n## 🔑 重点句型\n' + (patterns || '（待补充）') + '\n\n---\n\n## 📐 语法要点\n' + (grammar || '（待补充）') + '\n\n---\n\n## ✅ 今日小测\n' + (quiz || '（待补充）') + '\n\n---\n\n## 💪 今日鼓励\n' + (encouragement || 'Keep going! 加油！') + '\n\n---\n\n## 🎧 音频朗读\n' + (audioUrl ? '点击收听：' + audioUrl : '音频文件：' + audioFilepath) + '\n\n---\n*由AI英语伴学Agent自动生成 | 宁波初二专属*';\n\nreturn [{\n  json: {\n    title: topicInfo.topic_emoji + ' 每日英语 | ' + topicInfo.topic_name,\n    content: markdown,\n    topic: topicInfo.topic_name,\n    date: dateStr,\n    english_text: english,\n    audio_url: audioUrl,\n    audio_path: audioFilepath\n  }\n}];"
+      },
+      "id": "m3n4o5",
+      "name": "格式化推送内容",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wxpusher.zjiecode.com/api/send/message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"appToken\": \"AT_vmEhrI8hwfvXhd2CnPm4p4Qacbf0APdc\",\n  \"content\": {{ JSON.stringify($json.content) }},\n  \"contentType\": 3,\n  \"uids\": [\"UID_XJ0hQ6FIq6Iqlu5hbIOD5Rx3N7lF\"],\n  \"summary\": {{ JSON.stringify($json.title) }}\n}",
+        "options": {}
+      },
+      "id": "p6q7r8",
+      "name": "WxPusher推送微信",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1080,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 从AI输出中提取英文原文\nconst raw = $input.first().json.output || $input.first().json.text || '';\n\n// 提取 ===ENGLISH=== 部分\nlet englishText = '';\nconst match = raw.match(/===ENGLISH===([\\s\\S]*?)(?====|$)/i);\nif (match && match[1]) {\n  englishText = match[1].trim();\n}\n\n// 如果没找到标记，取前800字符\nif (!englishText || englishText.length < 50) {\n  const lines = raw.split('\\n');\n  englishText = lines.slice(0, 8).join(' ').substring(0, 800);\n}\n\nconst topicInfo = $('7日话题轮换').first().json;\n\nreturn [{\n  json: {\n    english_text: englishText,\n    speed: 1.0,\n    voice: 'us_female',\n    topic_name: topicInfo.topic_name || 'daily'\n  }\n}];"
+      },
+      "id": "n1o2p3",
+      "name": "提取英文原文",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5000/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": {{ JSON.stringify($json.english_text) }},\n  \"speed\": {{ $json.speed || 1.0 }},\n  \"voice\": \"us_female\"\n}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "q4r5s6",
+      "name": "生成音频文件",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        850,
+        150
+      ]
+    }
+  ],
+  "connections": {
+    "定时触发-每晚8点": {
+      "main": [
+        [
+          {
+            "node": "7日话题轮换",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7日话题轮换": {
+      "main": [
+        [
+          {
+            "node": "AI英语老师",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI英语老师": {
+      "main": [
+        [
+          {
+            "node": "提取英文原文",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "格式化推送内容": {
+      "main": [
+        [
+          {
+            "node": "WxPusher推送微信",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI模型": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI英语老师",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "提取英文原文": {
+      "main": [
+        [
+          {
+            "node": "生成音频文件",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "生成音频文件": {
+      "main": [
+        [
+          {
+            "node": "格式化推送内容",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
