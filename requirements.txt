@@ -2,3 +2,7 @@ fastapi==0.104.1
 uvicorn[standard]==0.24.0
 openai-whisper==20250625
 python-multipart==0.0.6
+
+# tts_server.py (Edge TTS + Flask)
+flask
+edge-tts
