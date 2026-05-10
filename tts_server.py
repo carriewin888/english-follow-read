@@ -32,17 +32,24 @@ Edge TTS 本地HTTP服务
 import argparse
 import asyncio
 import os
+import re
 import uuid
 import subprocess
 import sys
-import time
 from flask import Flask, request, jsonify, send_file
 
 try:
     import edge_tts
 except ImportError:
-    print("❌ 请先安装 edge-tts: pip install edge-tts")
+    print("[ERROR] Install edge-tts: pip install edge-tts")
     sys.exit(1)
+
+
+def _redact_git_remote_output(text: str) -> str:
+    """Mask credentials in `git remote -v` style lines (https://user:token@host)."""
+    if not text:
+        return text
+    return re.sub(r"(https?://)([^:/\s]+):([^@\s]+)@", r"\1\2:***@", text)
 
 app = Flask(__name__)
 
@@ -155,16 +162,15 @@ def generate():
 
     try:
         filepath, filename = generate_audio(text, speed, voice)
-        print(f"✅ 音频已生成: audio/{filename}")
+        print(f"[OK] audio generated: audio/{filename}")
 
         # 自动 git push
-        print("📤 正在 git push 到 GitHub...")
+        print("[git] pushing to GitHub...")
         success, msg = _git_push(filename)
-        print(f"[调试] _git_push 返回: success={success}, msg={msg}")
+        print(f"[git] push result: success={success}, msg={msg}")
 
-        # 强制返回公网 URL（不管 git push 是否成功）
         public_url = f"{GITHUB_RAW_BASE}/{filename}"
-        print(f"✅ 公网 URL: {public_url}")
+        print(f"[OK] public URL: {public_url}")
 
         return jsonify({
             "success": True,
@@ -202,7 +208,9 @@ def health():
             ["git", "remote", "-v"],
             cwd=GIT_REPO_DIR, capture_output=True, text=True, timeout=5
         )
-        remote = result.stdout.strip().replace("\n", " | ")
+        remote = _redact_git_remote_output(
+            result.stdout.strip().replace("\n", " | ")
+        )
         return jsonify({"status": "ok", "git_remote": remote})
     except Exception:
         return jsonify({"status": "ok", "git_remote": "unknown"})
@@ -213,16 +221,11 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=5000)
     args = parser.parse_args()
 
-    print(f"🚀 TTS 服务启动：http://localhost:{args.port}")
-    print(f"   生成接口：POST http://localhost:{args.port}/generate")
-    print(f"   音频目录：{AUDIO_DIR}")
-    print(f"   自动上传：{GITHUB_RAW_BASE}/")
-    print(f"")
-    print(f"⚠️  首次使用请配置 git 认证：")
-    print(f"   cd {GIT_REPO_DIR}")
-    print(f"   git config user.name '你的用户名'")
-    print(f"   git config user.email '你的邮箱'")
-    print(f"   # 然后配置 token，见脚本内注释")
-    print(f"")
-    print(f"🔍 健康检查：GET http://localhost:{args.port}/health")
+    print(f"[TTS] listening http://localhost:{args.port}")
+    print(f"      POST http://localhost:{args.port}/generate")
+    print(f"      audio dir: {AUDIO_DIR}")
+    print(f"      raw URL base: {GITHUB_RAW_BASE}/")
+    print("")
+    print("[NOTE] First-time setup: git user.name / user.email and auth (see script docstring).")
+    print(f"       GET http://localhost:{args.port}/health")
     app.run(host="0.0.0.0", port=args.port, debug=False)
