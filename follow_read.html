@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英语跟读练习 - Grade 3 Unit 9</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 20px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        h1 { color: #667eea; text-align: center; margin-bottom: 30px; font-size: 28px; }
+        .sentence { background: #f7f9fc; padding: 20px; border-radius: 10px; margin: 20px 0; font-size: 20px; line-height: 1.6; color: #2d3748; border-left: 4px solid #667eea; }
+        .controls { display: flex; gap: 15px; justify-content: center; margin: 30px 0; flex-wrap: wrap; }
+        button { padding: 15px 30px; font-size: 16px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; transition: all 0.3s; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; transform: translateY(-2px); }
+        .btn-success { background: #48bb78; color: white; }
+        .btn-success:hover { background: #38a169; transform: translateY(-2px); }
+        .btn-danger { background: #f56565; color: white; }
+        .btn-danger:hover { background: #e53e3e; transform: translateY(-2px); }
+        .result { margin-top: 30px; padding: 20px; border-radius: 10px; display: none; }
+        .result.show { display: block; }
+        .score { font-size: 48px; font-weight: bold; text-align: center; margin: 20px 0; }
+        .feedback { font-size: 18px; text-align: center; color: #4a5568; }
+        .recording { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .status { text-align: center; margin: 20px 0; font-size: 16px; color: #718096; }
+        .translation { background: #e6fffa; padding: 15px; border-radius: 8px; margin-top: 15px; color: #234e52; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 英语跟读练习</h1>
+        <div class="status" id="status">准备开始...</div>
+        
+        <div class="sentence" id="sentence">
+            <strong>句子：</strong><br>
+            <span id="english-text">He's a doctor.</span>
+            <div class="translation" id="translation">他是一名医生。</div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn-primary" id="btn-play" onclick="playReference()">🔊 播放原音</button>
+            <button class="btn-success" id="btn-record" onclick="startRecording()">🎤 开始跟读</button>
+            <button class="btn-danger" id="btn-stop" onclick="stopRecording()" style="display:none;">⏹️ 停止录音</button>
+            <button class="btn-primary" id="btn-next" onclick="nextSentence()" style="display:none;">➡️ 下一个</button>
+        </div>
+        
+        <div class="result" id="result">
+            <div class="score" id="score">--</div>
+            <div class="feedback" id="feedback"></div>
+        </div>
+    </div>
+
+    <script>
+        // ⚠️ 替换为你的 HuggingFace Space 地址
+        const API_URL = 'https://carriewin888-english-follow-read.hf.space';
+        
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        
+        // 示例句子数据（实际应该从后端获取）
+        const sentences = [
+            { english: "He's a doctor.", chinese: "他是一名医生。" },
+            { english: "She's a teacher.", chinese: "她是一名老师。" },
+            { english: "I'm a student.", chinese: "我是一名学生。" }
+        ];
+        let currentIndex = 0;
+        
+        // 播放参考音频（使用浏览器 TTS）
+        function playReference() {
+            const text = document.getElementById('english-text').textContent;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.8;
+            window.speechSynthesis.speak(utterance);
+            document.getElementById('status').textContent = '🔊 正在播放原音...';
+            utterance.onend = () => {
+                document.getElementById('status').textContent = '✅ 播放完成，可以开始跟读';
+            };
+        }
+        
+        // 开始录音
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    await sendForScoring(audioBlob);
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                
+                document.getElementById('btn-record').style.display = 'none';
+                document.getElementById('btn-stop').style.display = 'inline-block';
+                document.getElementById('status').textContent = '🔴 正在录音...';
+                document.getElementById('status').classList.add('recording');
+                
+            } catch (err) {
+                alert('无法访问麦克风：' + err.message);
+            }
+        }
+        
+        // 停止录音
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                document.getElementById('btn-stop').style.display = 'none';
+                document.getElementById('btn-record').style.display = 'inline-block';
+                document.getElementById('status').classList.remove('recording');
+                document.getElementById('status').textContent = '⏳ 正在评分...';
+            }
+        }
+        
+        // 发送音频到后端评分
+        async function sendForScoring(audioBlob) {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.webm');
+            formData.append('reference_text', document.getElementById('english-text').textContent);
+            
+            try {
+                const response = await fetch(`${API_URL}/score`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                // 显示评分结果
+                document.getElementById('score').textContent = result.score + '分';
+                document.getElementById('score').style.color = result.score > 80 ? '#48bb78' : '#f56565';
+                document.getElementById('feedback').textContent = result.feedback;
+                document.getElementById('result').classList.add('show');
+                document.getElementById('btn-next').style.display = 'inline-block';
+                document.getElementById('status').textContent = '✅ 评分完成！';
+                
+            } catch (err) {
+                alert('评分失败：' + err.message);
+                document.getElementById('status').textContent = '❌ 评分失败';
+            }
+        }
+        
+        // 下一个句子
+        function nextSentence() {
+            currentIndex = (currentIndex + 1) % sentences.length;
+            const sentence = sentences[currentIndex];
+            document.getElementById('english-text').textContent = sentence.english;
+            document.getElementById('translation').textContent = sentence.chinese;
+            document.getElementById('result').classList.remove('show');
+            document.getElementById('btn-next').style.display = 'none';
+            document.getElementById('status').textContent = '准备开始...';
+        }
+    </script>
+</body>
+</html>

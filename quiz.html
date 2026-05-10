@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英语答题练习 - Grade 3 Unit 9</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 20px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        h1 { color: #f5576c; text-align: center; margin-bottom: 30px; font-size: 28px; }
+        .question { background: #f7f9fc; padding: 20px; border-radius: 10px; margin: 20px 0; font-size: 18px; line-height: 1.6; color: #2d3748; }
+        .options { display: flex; flex-direction: column; gap: 15px; margin: 20px 0; }
+        .option { padding: 15px 20px; background: #edf2f7; border: 2px solid #e2e8f0; border-radius: 10px; cursor: pointer; transition: all 0.3s; font-size: 16px; }
+        .option:hover { background: #e2e8f0; border-color: #f5576c; }
+        .option.selected { background: #f5576c; color: white; border-color: #f5576c; }
+        .option.correct { background: #48bb78; color: white; border-color: #48bb78; }
+        .option.wrong { background: #f56565; color: white; border-color: #f56565; }
+        .controls { display: flex; gap: 15px; justify-content: center; margin: 30px 0; }
+        button { padding: 15px 30px; font-size: 16px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; transition: all 0.3s; }
+        .btn-primary { background: #f5576c; color: white; }
+        .btn-primary:hover { background: #e53e3e; transform: translateY(-2px); }
+        .btn-success { background: #48bb78; color: white; }
+        .btn-success:hover { background: #38a169; transform: translateY(-2px); }
+        .result { margin-top: 30px; padding: 20px; border-radius: 10px; display: none; text-align: center; }
+        .result.show { display: block; }
+        .score { font-size: 48px; font-weight: bold; margin: 20px 0; }
+        .explanation { background: #e6fffa; padding: 15px; border-radius: 8px; margin-top: 15px; color: #234e52; font-size: 16px; text-align: left; }
+        .status { text-align: center; margin: 20px 0; font-size: 16px; color: #718096; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✍️ 英语答题练习</h1>
+        <div class="status" id="status">第 1 题 / 共 5 题</div>
+        
+        <div class="question" id="question">
+            <strong>题目：</strong><br>
+            <span id="question-text">What does he do?</span>
+        </div>
+        
+        <div class="options" id="options">
+            <div class="option" onclick="selectOption(0)">A. He's a doctor.</div>
+            <div class="option" onclick="selectOption(1)">B. He's a teacher.</div>
+            <div class="option" onclick="selectOption(2)">C. He's a student.</div>
+            <div class="option" onclick="selectOption(3)">D. He's a driver.</div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn-primary" id="btn-submit" onclick="submitAnswer()" disabled>✅ 提交答案</button>
+            <button class="btn-success" id="btn-next" onclick="nextQuestion()" style="display:none;">➡️ 下一题</button>
+        </div>
+        
+        <div class="result" id="result">
+            <div class="score" id="score">--</div>
+            <div id="feedback"></div>
+            <div class="explanation" id="explanation"></div>
+        </div>
+    </div>
+
+    <script>
+        // 示例题目数据（实际应该从后端获取）
+        const questions = [
+            {
+                question: "What does he do?",
+                options: ["He's a doctor.", "He's a teacher.", "He's a student.", "He's a driver."],
+                correct: 0,
+                explanation: "问职业用 'What does he do?'，回答用 'He's a ...'"
+            },
+            {
+                question: "What does she do?",
+                options: ["She's a doctor.", "She's a teacher.", "She's a student.", "She's a driver."],
+                correct: 1,
+                explanation: "问女性职业用 'What does she do?'，回答用 'She's a ...'"
+            }
+        ];
+        
+        let currentIndex = 0;
+        let selectedOption = -1;
+        let score = 0;
+        
+        // 选择选项
+        function selectOption(index) {
+            const options = document.getElementById('options').children;
+            
+            // 如果已经显示答案，不允许重新选择
+            if (document.getElementById('result').classList.contains('show')) return;
+            
+            // 清除之前的选择
+            for (let i = 0; i < options.length; i++) {
+                options[i].classList.remove('selected');
+            }
+            
+            // 标记当前选择
+            options[index].classList.add('selected');
+            selectedOption = index;
+            document.getElementById('btn-submit').disabled = false;
+        }
+        
+        // 提交答案
+        function submitAnswer() {
+            if (selectedOption === -1) return;
+            
+            const question = questions[currentIndex];
+            const options = document.getElementById('options').children;
+            const isCorrect = selectedOption === question.correct;
+            
+            // 显示正确答案和错误答案
+            for (let i = 0; i < options.length; i++) {
+                if (i === question.correct) {
+                    options[i].classList.add('correct');
+                } else if (i === selectedOption && !isCorrect) {
+                    options[i].classList.add('wrong');
+                }
+            }
+            
+            // 计算分数
+            if (isCorrect) {
+                score += 20;
+                document.getElementById('score').textContent = '✅ 正确！';
+                document.getElementById('score').style.color = '#48bb78';
+            } else {
+                document.getElementById('score').textContent = '❌ 错误';
+                document.getElementById('score').style.color = '#f56565';
+            }
+            
+            document.getElementById('feedback').textContent = isCorrect ? '太棒了！' : '加油，继续努力！';
+            document.getElementById('explanation').textContent = '💡 解析：' + question.explanation;
+            document.getElementById('result').classList.add('show');
+            document.getElementById('btn-submit').style.display = 'none';
+            document.getElementById('btn-next').style.display = 'inline-block';
+        }
+        
+        // 下一题
+        function nextQuestion() {
+            currentIndex++;
+            
+            if (currentIndex >= questions.length) {
+                // 显示最终成绩
+                alert(`答题完成！\n最终成绩：${score} 分`);
+                currentIndex = 0;
+                score = 0;
+            }
+            
+            const question = questions[currentIndex];
+            document.getElementById('question-text').textContent = question.question;
+            
+            const options = document.getElementById('options').children;
+            for (let i = 0; i < options.length; i++) {
+                options[i].textContent = `${String.fromCharCode(65 + i)}. ${question.options[i]}`;
+                options[i].classList.remove('selected', 'correct', 'wrong');
+            }
+            
+            selectedOption = -1;
+            document.getElementById('btn-submit').disabled = true;
+            document.getElementById('btn-submit').style.display = 'inline-block';
+            document.getElementById('btn-next').style.display = 'none';
+            document.getElementById('result').classList.remove('show');
+            document.getElementById('status').textContent = `第 ${currentIndex + 1} 题 / 共 ${questions.length} 题`;
+        }
+    </script>
+</body>
+</html>

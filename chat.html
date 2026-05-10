@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英语自由对话 - AI 老师</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 20px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); height: 90vh; display: flex; flex-direction: column; }
+        h1 { color: #4facfe; text-align: center; margin-bottom: 20px; font-size: 28px; }
+        .chat-box { flex: 1; overflow-y: auto; padding: 20px; background: #f7f9fc; border-radius: 10px; margin-bottom: 20px; }
+        .message { margin: 15px 0; padding: 15px 20px; border-radius: 15px; max-width: 70%; word-wrap: break-word; }
+        .message.user { background: #4facfe; color: white; margin-left: auto; text-align: right; }
+        .message.ai { background: #edf2f7; color: #2d3748; margin-right: auto; }
+        .message .sender { font-size: 12px; margin-bottom: 5px; opacity: 0.7; }
+        .input-area { display: flex; gap: 15px; }
+        input { flex: 1; padding: 15px 20px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 16px; outline: none; transition: border-color 0.3s; }
+        input:focus { border-color: #4facfe; }
+        button { padding: 15px 30px; font-size: 16px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; background: #4facfe; color: white; transition: all 0.3s; }
+        button:hover { background: #319795; transform: translateY(-2px); }
+        button:disabled { background: #a0aec0; cursor: not-allowed; transform: none; }
+        .status { text-align: center; margin: 10px 0; font-size: 14px; color: #718096; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💬 英语自由对话</h1>
+        <div class="status" id="status">AI 老师已就绪</div>
+        
+        <div class="chat-box" id="chat-box">
+            <div class="message ai">
+                <div class="sender">AI 老师</div>
+                你好！我是你的英语 AI 老师，我们可以先用中文聊聊，你想学习什么内容？
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="输入你的问题..." onkeypress="if(event.key==='Enter') sendMessage()">
+            <button id="btn-send" onclick="sendMessage()">发送</button>
+        </div>
+    </div>
+
+    <script>
+        // ⚠️ 这里使用免费的 AI API（实际部署时应该通过后端调用）
+        // 建议使用 OpenRouter 或其他免费 API
+        const AI_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+        const AI_API_KEY = 'YOUR_API_KEY_HERE'; // 需要替换为真实的 API Key
+        
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const btnSend = document.getElementById('btn-send');
+        
+        // 发送消息
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+            
+            // 显示用户消息
+            appendMessage('你', message, 'user');
+            userInput.value = '';
+            btnSend.disabled = true;
+            document.getElementById('status').textContent = '⏳ AI 正在思考...';
+            
+            try {
+                // 调用 AI API
+                const response = await fetch(AI_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${AI_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'google/gemini-pro',
+                        messages: [
+                            { role: 'system', content: '你是一个友好的英语老师，可以用中文和英文回答问题。' },
+                            { role: 'user', content: message }
+                        ]
+                    })
+                });
+                
+                const data = await response.json();
+                const aiReply = data.choices[0].message.content;
+                
+                // 显示 AI 回复
+                appendMessage('AI 老师', aiReply, 'ai');
+                document.getElementById('status').textContent = '✅ AI 老师已回复';
+                
+            } catch (err) {
+                appendMessage('AI 老师', '抱歉，我遇到了一些问题，请稍后再试。', 'ai');
+                document.getElementById('status').textContent = '❌ 发送失败';
+                console.error(err);
+            } finally {
+                btnSend.disabled = false;
+            }
+        }
+        
+        // 添加消息到聊天框
+        function appendMessage(sender, text, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `
+                <div class="sender">${sender}</div>
+                ${text}
+            `;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
