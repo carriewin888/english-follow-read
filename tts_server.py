@@ -59,10 +59,10 @@ os.makedirs(AUDIO_DIR, exist_ok=True)
 
 # raw.githubusercontent.com 公网 URL 前缀（git push 后几秒内即可访问）
 # 格式：https://raw.githubusercontent.com/<用户名>/<仓库名>/<分支>/audio/<文件名>
-GITHUB_RAW_BASE = "https://raw.githubusercontent.com/carriewin888/english-follow-read/main/audio"
+GITHUB_RAW_BASE = "https://raw.githubusercontent.com/carriewin888/english-follow-read/master/audio"
 
 GIT_REPO_DIR = r"D:\BN\Future\english"
-GIT_BRANCH = "main"  # 如果是 master 分支，改成 "master"
+GIT_BRANCH = "master"  # 已确认仓库分支为 master
 
 
 def _git_push(filename):
