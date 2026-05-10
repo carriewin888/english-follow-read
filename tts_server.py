@@ -73,19 +73,31 @@ def _git_push(filename):
             ["git", "status", "--porcelain"],
             cwd=GIT_REPO_DIR, capture_output=True, text=True, timeout=10
         )
+        print(f"[git status] returncode={result.returncode}")
+        print(f"[git status] stdout={result.stdout[:200]}")  # 只打印前200字符
+
         # git add
+        print(f"[git add] audio/{filename}")
         result = subprocess.run(
             ["git", "add", f"audio/{filename}"],
             cwd=GIT_REPO_DIR, capture_output=True, text=True, timeout=30
         )
+        print(f"[git add] returncode={result.returncode}")
+        print(f"[git add] stderr={result.stderr[:200]}")
+
         if result.returncode != 0:
             return False, f"git add 失败: {result.stderr.strip()}"
 
         # git commit
+        print(f"[git commit] add audio: {filename}")
         result = subprocess.run(
             ["git", "commit", "-m", f"add audio: {filename}"],
             cwd=GIT_REPO_DIR, capture_output=True, text=True, timeout=30
         )
+        print(f"[git commit] returncode={result.returncode}")
+        print(f"[git commit] stdout={result.stdout[:200]}")
+        print(f"[git commit] stderr={result.stderr[:200]}")
+
         # commit 返回1可能是没有变化，不算错误
         if result.returncode != 0:
             if "nothing to commit" in result.stdout or "nothing to commit" in result.stderr:
@@ -94,12 +106,17 @@ def _git_push(filename):
                 return False, f"git commit 失败: {result.stderr.strip() or result.stdout.strip()}"
 
         # git push
+        print(f"[git push] origin {GIT_BRANCH}")
         result = subprocess.run(
             ["git", "push", "origin", GIT_BRANCH],
             cwd=GIT_REPO_DIR, capture_output=True, text=True, timeout=60
         )
+        print(f"[git push] returncode={result.returncode}")
+        print(f"[git push] stdout={result.stdout[:200]}")
+        print(f"[git push] stderr={result.stderr[:200]}")
+
         if result.returncode != 0:
-            return False, f"git push 失败: {result.stderr.strip()}"
+            return False, f"git push 失败: {result.stderr.strip() or result.stdout.strip()}"
 
         return True, "ok"
     except subprocess.TimeoutExpired:
