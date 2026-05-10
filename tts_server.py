@@ -167,21 +167,14 @@ def generate():
         print(f"✅ 公网 URL: {public_url}")
 
         return jsonify({
-            "success": True,  # 强制为 True
+            "success": True,
             "filename": filename,
             "filepath": filepath,
             "url": public_url,
             "github_raw_url": public_url,
             "local_url": f"http://localhost:5000/audio/{filename}",
-            "git_push_msg": "forced public URL"
-        })        return jsonify({
-            "success": True,  # 强制为 True，因为我们要返回公网 URL
-            "filename": filename,
-            "filepath": filepath,
-            "url": public_url,
-            "github_raw_url": public_url,
-            "local_url": f"http://localhost:5000/audio/{filename}",
-            "git_push_msg": "forced public URL"
+            "git_push_success": success,
+            "git_push_msg": msg,
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
